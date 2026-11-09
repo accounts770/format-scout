@@ -1,11 +1,11 @@
 name: Watch queued videos
 
-# Every 10 minutes, checks the shared Drive queue folder for new batch files,
+# Every 5 minutes, checks the shared Drive queue folder for new batch files,
 # watches those videos, and saves frames + transcripts to reports/.
 # A push that adds a file to queue/ (from a chat that can push) is processed too.
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   push:
     paths:
       - "queue/*.txt"
