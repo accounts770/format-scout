@@ -5,7 +5,7 @@ Watches short-form videos so they can be broken down into reusable formats. List
 ## How it runs
 
 1. A batch file appears in the queue folder (plain text, named like `2026-12-a1b2c3d4-7f3e`, one link per line). Batch names are codes; nothing in this repo names who a batch is for.
-2. Every 5 minutes the **Watch queued videos** workflow (`.github/workflows/watch.yml`) checks the folder with `scripts/fetch_drive_queue.py`. Only TikTok, Instagram, and YouTube links are accepted.
+2. A small Google Apps Script (`scripts/queue-watcher.gs`) notices the new file within about a minute and starts the **Watch queued videos** workflow (a 5-minute schedule is the backup). The workflow (`.github/workflows/watch.yml`) checks the folder with `scripts/fetch_drive_queue.py`. Only TikTok, Instagram, and YouTube links are accepted.
 3. For each new batch, `scripts/process_queue.sh` runs the `watch` tool from [bradautomates/claude-video](https://github.com/bradautomates/claude-video), pinned to a reviewed commit.
 4. Results are committed to `reports/<batch>/`:
    - `<n>/report.md`: title, creator, duration, transcript, and the frame list

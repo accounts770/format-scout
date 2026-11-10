@@ -1,9 +1,13 @@
 name: Watch queued videos
 
-# Every 5 minutes, checks the shared Drive queue folder for new batch files,
-# watches those videos, and saves frames + transcripts to reports/.
+# Checks the shared Drive queue folder for new batch files, watches those
+# videos, and saves frames + transcripts to reports/. Started within about a
+# minute by the Google Apps Script in scripts/queue-watcher.gs (repository_dispatch);
+# the 5-minute schedule is only a backup, since GitHub often delays scheduled runs.
 # A push that adds a file to queue/ (from a chat that can push) is processed too.
 on:
+  repository_dispatch:
+    types: [queue]
   schedule:
     - cron: "*/5 * * * *"
   push:
