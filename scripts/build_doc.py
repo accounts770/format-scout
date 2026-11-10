@@ -34,8 +34,8 @@ spec.json:
 }
 
 "hook" is written without the label; quotes are added if missing.
-Frames are combined into one small strip (about 1.3" wide) so cards stay compact
-when printed. A card with no frames gets a full-width text layout.
+Frames are stacked down the left side of the card (about 1.5" tall each),
+numbered 1-3 in order. A card with no frames gets a full-width text layout.
 """
 from __future__ import annotations
 
@@ -146,29 +146,34 @@ def rule(p):
     ppr.append(bdr)
 
 
-def frame_strip(paths, workdir):
-    from PIL import Image
+def numbered_frames(paths, workdir):
+    """Up to three frames, each with a small numbered badge (1, 2, 3) in the corner,
+    saved as separate images so they can be stacked down the left of the card."""
+    from PIL import Image, ImageDraw, ImageFont
 
-    imgs = []
+    out = []
     for p in paths[:3]:
         try:
             im = Image.open(p).convert("RGB")
-            imgs.append(im)
         except Exception:
             continue
-    if not imgs:
-        return None
-    h = 480
-    imgs = [im.resize((max(1, int(im.width * h / im.height)), h)) for im in imgs]
-    gap = 16
-    strip = Image.new("RGB", (sum(i.width for i in imgs) + gap * (len(imgs) - 1), h), "white")
-    x = 0
-    for im in imgs:
-        strip.paste(im, (x, 0))
-        x += im.width + gap
-    out = Path(workdir) / f"strip_{len(os.listdir(workdir))}.jpg"
-    strip.save(out, quality=85)
-    return out, strip.width / strip.height
+        h = 640
+        im = im.resize((max(1, int(im.width * h / im.height)), h))
+        d = ImageDraw.Draw(im)
+        r = 34
+        d.ellipse([10, 10, 10 + 2 * r, 10 + 2 * r], fill="white", outline="black", width=4)
+        try:
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 44)
+        except Exception:
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 44)
+            except Exception:
+                font = ImageFont.load_default()
+        d.text((10 + r, 10 + r), str(len(out) + 1), fill="black", font=font, anchor="mm")
+        path = Path(workdir) / f"frame_{len(os.listdir(workdir))}.jpg"
+        im.save(path, quality=85)
+        out.append((path, im.width / im.height))
+    return out
 
 
 def card_fields(doc, cell_or_doc, c, first_para=None):
@@ -262,24 +267,25 @@ def build(spec):
                 p.paragraph_format.keep_with_next = True
                 run(p, c["source"], 9, italic=True, color="595959")
 
-            strip = frame_strip(c.get("frames") or [], workdir)
-            if strip:
-                path, ratio = strip
+            frames = numbered_frames(c.get("frames") or [], workdir)
+            if frames:
                 t = doc.add_table(rows=1, cols=2)
                 no_borders(t)
                 t.autofit = False
-                for col, w in zip(t.columns, (Inches(1.55), Inches(4.95))):
+                for col, w in zip(t.columns, (Inches(1.45), Inches(5.05))):
                     col.width = w
                     for cell in col.cells:
                         cell.width = w
                 left, right = t.rows[0].cells
-                lp = left.paragraphs[0]
-                lp.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                lp.paragraph_format.space_after = Pt(0)
-                width = 1.3 if ratio >= 1.3 / 1.6 else 1.6 * ratio  # cap the height near 1.6"
-                lp.add_run().add_picture(str(path), width=Inches(width))
+                for k, (path, ratio) in enumerate(frames):
+                    fp = left.paragraphs[0] if k == 0 else para(left)
+                    fp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    fp.paragraph_format.space_after = Pt(4)
+                    # Vertical frames ~1.5" tall; wide frames capped at the column width.
+                    width = min(1.25, 1.5 * ratio)
+                    fp.add_run().add_picture(str(path), width=Inches(width))
                 cap = para(left)
-                run(cap, "Reference frames", 7, italic=True, color="7F7F7F")
+                run(cap, "Reference frames, in order", 7, italic=True, color="7F7F7F")
                 first = right.paragraphs[0]
                 first.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 first.paragraph_format.space_after = Pt(2)
